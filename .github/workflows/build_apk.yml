@@ -1,0 +1,54 @@
+name: Build MY ID APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Find Flutter project
+        run: |
+          echo "Searching for pubspec.yaml..."
+          find . -name pubspec.yaml -not -path "*/.git/*"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.0'
+          channel: stable
+          cache: true
+
+      - name: Detect project folder
+        run: |
+          PROJECT_DIR=$(dirname "$(find . -name pubspec.yaml -not -path "*/.git/*" | head -n 1)")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Flutter project found at: $PROJECT_DIR"
+
+      - name: Install dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter build apk --release
+
+      - name: Rename APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+          MY_ID_release.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MY_ID_release_apk
+          path: ${{ env.PROJECT_DIR }}/MY_ID_release.apk
+          if-no-files-found: error
